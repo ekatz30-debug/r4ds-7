@@ -1,0 +1,13 @@
+---
+title: "Crypto Markets"
+author: "Ethan Katz"
+execute:
+  echo: false
+---
+
+```{r}
+#| message: false
+
+library(tidyverse)
+library(arrow)
+```
