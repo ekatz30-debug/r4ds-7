@@ -11,3 +11,65 @@ execute:
 library(tidyverse)
 library(arrow)
 ```
+
+```{r}
+#| cache: true
+
+prices <- open_dataset("data/daily_prices.parquet") |>
+  collect()
+metadata <- open_dataset("data/coin_metadata.parquet") |>
+  collect()
+categories <- open_dataset("data/categories.parquet") |>
+  collect()
+
+crypto <- prices |>
+  left_join(metadata, by = "coin_id") |>
+  left_join(select(categories, -description), by = "category_id") |>
+  mutate(date = ymd(date_raw))
+```
+
+```{r}
+crypto |>
+  group_by(date, category_name) |>
+  summarise(cat_mcap = sum(market_cap_usd, na.rm = TRUE), .groups = "drop") |>
+  mutate(
+    category_name = fct_reorder(category_name, cat_mcap, .fun = median, .desc = TRUE)
+  ) |>
+  ggplot(aes(x = date, y = cat_mcap, fill = category_name)) +
+  geom_area(position = "fill") +
+  scale_fill_viridis_d(option = "plasma", end = 0.9) +
+  scale_y_continuous(labels = scales::percent) +
+  annotate(
+    "rect",
+    xmin = as.Date("2022-05-07"), xmax = as.Date("2022-05-12"),
+    ymin = -Inf, ymax = Inf, alpha = 0.25, fill = "black"
+  ) +
+  annotate(
+    "rect",
+    xmin = as.Date("2022-11-08"), xmax = as.Date("2022-11-11"),
+    ymin = -Inf, ymax = Inf, alpha = 0.25, fill = "black"
+  ) +
+  geom_vline(
+    xintercept = as.Date(c("2022-05-09", "2022-11-09")),
+    linetype = "dashed", color = "white", linewidth = 0.5
+  ) +
+  annotate(
+    "text",
+    x = as.Date("2022-04-15"), y = 0.93,
+    label = "Luna/UST\ncrash", hjust = 1, size = 3, color = "white", fontface = "bold"
+  ) +
+  annotate(
+    "text",
+    x = as.Date("2022-12-01"), y = 0.93,
+    label = "FTX\ncollapse", hjust = 0, size = 3, color = "white", fontface = "bold"
+  ) +
+  labs(
+    x = "Date",
+    y = "Share of total market cap",
+    fill = "Category",
+    title = "Crypto market cap share by category, 2018–2026",
+    subtitle = "Bitcoin gained share as smart-contract platforms shrank and stablecoins grew",
+    caption = "Source: Coin Metrics Community Data (CC BY 4.0)"
+  ) +
+  theme_minimal()
+```
